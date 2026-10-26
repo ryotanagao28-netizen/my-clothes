@@ -105,6 +105,11 @@ h1 small { display: block; font-family: var(--f-mono); font-size: 11px; letter-s
 .kv dd { margin: 0; font-family: var(--f-mono); font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .kv.strong dd { font-weight: 500; color: var(--ai); }
 .tag .wear { width: 100%; }
+.card-actions { display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap; min-height: 30px; }
+.card-actions .link { border: 0; background: none; padding: 4px 2px; font-size: 13px; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
+.card-actions .link.danger { color: #b3261e; }
+:root[data-theme="dark"] .card-actions .link.danger { color: #f2b8b5; }
+.card-actions .ask { font-size: 12px; width: 100%; }
 .tag { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 6px 6px 10px 10px; box-shadow: var(--shadow); display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
 .tag .ph { aspect-ratio: 4 / 3; max-width: 100%; background: var(--ai-soft); display: grid; place-items: center; position: relative; border: 0; padding: 0; width: 100%; }
 .tag .ph img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -521,7 +526,22 @@ dialog form { display: flex; flex-direction: column; max-height: calc(100dvh - 2
           kv("最終着用", l ? (ds === 0 ? "今日" : `${ds}日前`) : "—")),
         wornToday
           ? el("button", { class: "btn small wear", type: "button", onclick: () => toggleWear(it, false), text: "今日 ✓（取り消す）" })
-          : el("button", { class: "btn small primary wear", type: "button", onclick: () => toggleWear(it, true), text: "今日着た" })));
+          : el("button", { class: "btn small primary wear", type: "button", onclick: () => toggleWear(it, true), text: "今日着た" }),
+        cardActions(it)));
+  }
+  function cardActions(it) {
+    const box = el("div", { class: "card-actions" });
+    const normal = () => box.replaceChildren(
+      el("button", { class: "link", type: "button", "aria-label": `${it.name}を編集`, onclick: () => openForm(it.id), text: "編集" }),
+      el("button", { class: "link danger", type: "button", "aria-label": `${it.name}を削除`, onclick: confirmDel, text: "削除" }));
+    const confirmDel = () => box.replaceChildren(
+      el("span", { class: "ask", text: "削除しますか？" }),
+      el("button", { class: "btn small danger", type: "button", onclick: async () => {
+        try { await store.remove(it.id); toast(`「${it.name}」を削除しました`); } catch { toast("削除できませんでした。もう一度お試しください。"); normal(); }
+      }, text: "削除する" }),
+      el("button", { class: "btn small", type: "button", onclick: normal, text: "やめる" }));
+    normal();
+    return box;
   }
 
   async function toggleWear(it, on) {
