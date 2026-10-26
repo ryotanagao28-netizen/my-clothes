@@ -1,0 +1,16 @@
+{
+  "name": "クローゼット帳",
+  "short_name": "クローゼット帳",
+  "description": "服の登録と着用記録、購入額と着用回数を管理するアプリ",
+  "lang": "ja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#eef1f4",
+  "theme_color": "#2b4c7e",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

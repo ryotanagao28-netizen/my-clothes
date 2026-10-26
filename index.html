@@ -1,0 +1,786 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#2b4c7e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="クローゼット帳">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="icons/icon-192.png">
+<style>:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;-webkit-text-size-adjust:100%}img{max-width:100%}[hidden]{display:none!important}input,select,textarea{font-size:16px!important}</style>
+</head>
+<body>
+<title>クローゼット帳</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+Antique:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: sticky toolbar over one shelf row per body part (horizontal scroll of hang-tag cards); summary strip on top; edit in a sheet dialog */
+:root {
+  --bg: #eef1f4;
+  --surface: #ffffff;
+  --ink: #1c2430;
+  --muted: #5d6877;
+  --line: #d5dbe3;
+  --ai: #2b4c7e;          /* 藍 indigo accent */
+  --ai-soft: #dfe7f3;
+  --warn: #9a5b12;
+  --warn-soft: #f6ead8;
+  --ok: #2f6b4a;
+  --ok-soft: #dcefe3;
+  --shadow: 0 1px 2px rgba(28,36,48,.06), 0 4px 14px rgba(28,36,48,.06);
+  --f-display: "Zen Kaku Gothic Antique", "Hiragino Sans", "Yu Gothic", sans-serif;
+  --f-body: "Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic", "Noto Sans JP", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #11161d; --surface: #19202a; --ink: #e6ebf2; --muted: #9aa6b6; --line: #2c3644;
+  --ai: #8fb0e3; --ai-soft: #22324a; --warn: #e6b16a; --warn-soft: #3a2d1b; --ok: #84c9a2; --ok-soft: #1d3428;
+  --shadow: 0 1px 2px rgba(0,0,0,.3); color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #11161d; --surface: #19202a; --ink: #e6ebf2; --muted: #9aa6b6; --line: #2c3644;
+  --ai: #8fb0e3; --ai-soft: #22324a; --warn: #e6b16a; --warn-soft: #3a2d1b; --ok: #84c9a2; --ok-soft: #1d3428;
+  --shadow: 0 1px 2px rgba(0,0,0,.3); color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.6; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.wrap { max-width: 1120px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--ai); outline-offset: 2px; }
+
+header.top { padding-block: 28px 8px; display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: end; justify-content: space-between; }
+h1 { font-family: var(--f-display); font-weight: 700; font-size: 28px; letter-spacing: .04em; margin: 0; text-wrap: balance; }
+h1 small { display: block; font-family: var(--f-mono); font-size: 11px; letter-spacing: .14em; color: var(--muted); font-weight: 400; text-transform: uppercase; }
+.status { font-size: 12px; color: var(--muted); }
+.title-row { display: flex; align-items: end; gap: 12px 18px; flex-wrap: wrap; }
+.seg { display: inline-flex; border: 1px solid var(--ai); border-radius: 999px; overflow: hidden; }
+.seg button { border: 0; background: var(--surface); color: var(--ai); font-family: var(--f-mono); font-size: 13px; font-weight: 500; letter-spacing: .12em; padding: 5px 14px; }
+.seg button[aria-pressed="true"] { background: var(--ai); color: var(--surface); }
+
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 8px 14px; font-weight: 500; }
+.btn:hover { border-color: var(--ai); }
+.btn.primary { background: var(--ai); border-color: var(--ai); color: var(--surface); font-weight: 700; }
+.btn.danger { color: #b3261e; }
+:root[data-theme="dark"] .btn.danger { color: #f2b8b5; }
+.btn.small { padding: 4px 10px; font-size: 13px; }
+
+/* summary */
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-block: 16px; }
+.stat { background: var(--surface); padding: 12px 16px; min-width: 0; }
+.stat .k { font-size: 12px; color: var(--muted); letter-spacing: .04em; }
+.stat .v { font-family: var(--f-mono); font-size: 22px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.stat .v span { font-size: 12px; color: var(--muted); margin-left: 2px; }
+.bar { display: flex; height: 6px; border-radius: 3px; overflow: hidden; margin-top: 8px; background: var(--line); }
+
+/* toolbar */
+.toolbar { margin-top: 12px; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 10px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; border-bottom: 1px solid var(--line); }
+.toolbar input[type=search], .toolbar select { border: 1px solid var(--line); background: var(--surface); border-radius: 8px; padding: 7px 10px; min-width: 0; }
+.toolbar input[type=search] { flex: 1 1 180px; }
+
+/* grid of hang tags */
+.shelves { display: grid; gap: 22px; padding-block: 18px 48px; }
+.shelf { display: grid; gap: 10px; min-width: 0; }
+.shelf-h { display: flex; align-items: baseline; gap: 6px 10px; flex-wrap: wrap; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+.shelf-h h2 { font-family: var(--f-display); font-size: 18px; margin: 0; letter-spacing: .04em; }
+.shelf-h .dot { width: 10px; height: 10px; border-radius: 50%; align-self: center; }
+.shelf-h .count { font-family: var(--f-mono); font-size: 13px; color: var(--muted); }
+.shelf-h .count b { font-size: 18px; color: var(--ink); font-weight: 500; margin-right: 2px; }
+.shelf-h .sub { font-family: var(--f-body); font-size: 12px; }
+.shelf-h .sum { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.shelf-h .add { margin-left: auto; }
+.shelf-row { display: flex; gap: 12px; overflow-x: auto; padding: 2px 2px 10px; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
+.shelf-row .tag { flex: 0 0 196px; scroll-snap-align: start; }
+.intro { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; background: var(--ai-soft); border-radius: 10px; padding: 12px 14px; }
+.intro p { margin: 0; flex: 1 1 240px; font-size: 13px; }
+.shelf-empty { margin: 0; font-size: 13px; color: var(--muted); padding: 6px 0; }
+.money { margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; border-top: 1px dashed var(--line); padding-top: 8px; margin-top: auto; }
+.kv { min-width: 0; }
+.kv dt { font-size: 11px; color: var(--muted); }
+.kv dd { margin: 0; font-family: var(--f-mono); font-size: 14px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.kv.strong dd { font-weight: 500; color: var(--ai); }
+.tag .wear { width: 100%; }
+.tag { position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 6px 6px 10px 10px; box-shadow: var(--shadow); display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+.tag .ph { aspect-ratio: 4 / 3; max-width: 100%; background: var(--ai-soft); display: grid; place-items: center; position: relative; border: 0; padding: 0; width: 100%; }
+.tag .ph img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tag .ph .sw { width: 56px; height: 56px; border-radius: 50%; border: 1px solid rgba(0,0,0,.12); }
+.tag .hole { position: absolute; top: 10px; left: 50%; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: var(--bg); border: 1px solid var(--line); z-index: 1; }
+.tag .body { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.tag .name { font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; }
+.tag .meta { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.pills { display: flex; flex-wrap: wrap; gap: 4px; }
+.pill { font-size: 11px; padding: 1px 8px; border-radius: 999px; background: var(--ai-soft); color: var(--ai); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.ok { background: var(--ok-soft); color: var(--ok); }
+.tag .foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; border-top: 1px dashed var(--line); padding-top: 8px; margin-top: auto; }
+.tag .wears { font-family: var(--f-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.tag .wears b { color: var(--ink); font-size: 15px; font-weight: 500; }
+.example { position: absolute; top: 8px; right: 8px; font-size: 10px; background: var(--surface); color: var(--muted); padding: 0 6px; border-radius: 4px; border: 1px solid var(--line); z-index: 1; }
+
+.empty { text-align: center; padding: 56px 16px; color: var(--muted); display: grid; gap: 12px; justify-items: center; }
+.empty h2 { font-family: var(--f-display); color: var(--ink); margin: 0; font-size: 20px; }
+.empty .row { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+
+/* dialog */
+dialog { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); padding: 0; width: min(560px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); }
+dialog::backdrop { background: rgba(10,15,22,.45); }
+dialog form { display: flex; flex-direction: column; max-height: calc(100dvh - 26px); }
+.dlg-h { padding: 14px 18px; border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.dlg-h h2 { margin: 0; font-family: var(--f-display); font-size: 18px; }
+.dlg-b { padding: 16px 18px; overflow: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; }
+.dlg-f { padding: 12px 18px; border-top: 1px solid var(--line); display: flex; gap: 8px; justify-content: space-between; flex-wrap: wrap; }
+.dlg-f .r { display: flex; gap: 8px; margin-left: auto; }
+.field { display: grid; gap: 4px; min-width: 0; }
+.field.full { grid-column: 1 / -1; }
+.field > span { font-size: 12px; color: var(--muted); letter-spacing: .04em; }
+.field input, .field select, .field textarea { border: 1px solid var(--line); background: var(--bg); border-radius: 8px; padding: 8px 10px; width: 100%; min-width: 0; }
+.field textarea { min-height: 70px; resize: vertical; }
+.seasons { display: flex; gap: 6px; flex-wrap: wrap; }
+.seasons label { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--line); border-radius: 999px; padding: 3px 12px; font-size: 13px; }
+.seasons input { width: auto; }
+.photo-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.photo-prev { width: 96px; height: 72px; border-radius: 6px; background: var(--ai-soft); object-fit: cover; display: grid; place-items: center; font-size: 11px; color: var(--muted); overflow: hidden; }
+.photo-prev img { width: 100%; height: 100%; object-fit: cover; }
+.log { font-family: var(--f-mono); font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.confirm { display: flex; gap: 8px; align-items: center; font-size: 13px; }
+
+.dlg-b.one { grid-template-columns: 1fr; }
+.imp-wrap { display: flex; flex-direction: column; max-height: calc(100dvh - 26px); }
+.hint { margin: 0; font-size: 13px; color: var(--muted); }
+.hint b { color: var(--ink); }
+.imp-thumbs { display: flex; gap: 6px; flex-wrap: wrap; }
+.imp-thumbs img { width: 56px; height: 96px; object-fit: cover; border-radius: 4px; border: 1px solid var(--line); }
+.imp-results { display: grid; gap: 10px; }
+.imp-row { display: grid; grid-template-columns: auto 72px 1fr; gap: 10px; align-items: start; border: 1px solid var(--line); border-radius: 8px; padding: 10px; min-width: 0; }
+.imp-row .th { width: 72px; height: 72px; border-radius: 6px; background: var(--ai-soft); object-fit: cover; }
+.imp-row .info { display: grid; gap: 6px; min-width: 0; }
+.imp-row .info input, .imp-row .info select { border: 1px solid var(--line); background: var(--bg); border-radius: 6px; padding: 5px 8px; width: 100%; min-width: 0; font-size: 14px; }
+.imp-row .meta { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.imp-row input[type=checkbox] { width: 20px; height: 20px; margin-top: 4px; }
+.url-row { display: flex; gap: 8px; align-items: center; }
+.url-row a { font-size: 13px; color: var(--ai); white-space: nowrap; }
+
+.toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 16px; border-radius: 8px; font-size: 14px; z-index: 20; }
+.notice { background: var(--warn-soft); color: var(--warn); padding: 8px 12px; border-radius: 8px; font-size: 13px; margin-top: 8px; }
+
+@media (max-width: 480px) {
+  .dlg-b { grid-template-columns: 1fr; }
+  .shelf-row .tag { flex-basis: 168px; }
+  .shelf-h h2 { font-size: 16px; letter-spacing: .02em; }
+  .summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .summary .stat:first-child { grid-column: 1 / -1; }
+  .toolbar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .toolbar input[type=search] { grid-column: 1 / -1; }
+  .toolbar select { font-size: 13px; padding: 7px 6px; }
+  h1 { font-size: 24px; }
+}
+@media (prefers-reduced-motion: no-preference) { .tag { transition: transform .15s ease; } .tag:hover { transform: translateY(-2px); } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div class="title-row">
+      <h1><small>Wardrobe Ledger</small>クローゼット帳</h1>
+      <div class="seg" id="modeSeg" role="group" aria-label="カテゴリの表示">
+        <button type="button" data-mode="men" aria-pressed="true">MEN</button>
+        <button type="button" data-mode="women" aria-pressed="false">WOMEN</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span class="status" id="status">読み込み中…</span>
+      <button class="btn" id="importBtn" type="button" hidden>スクショから登録</button>
+      <button class="btn" id="bkBtn" type="button">バックアップ</button>
+      <button class="btn primary" id="addBtn" type="button">＋ 服を登録</button>
+    </div>
+  </header>
+  <div id="notice" hidden class="notice"></div>
+
+
+  <div class="toolbar">
+    <input type="search" id="q" placeholder="名前・ブランド・メモで検索" aria-label="検索">
+    <select id="season" aria-label="シーズン">
+      <option value="">全シーズン</option>
+      <option>春</option><option>夏</option><option>秋</option><option>冬</option>
+    </select>
+    <select id="statusF" aria-label="状態">
+      <option value="">すべての状態</option>
+    </select>
+    <select id="sort" aria-label="並び替え">
+      <option value="new">登録が新しい順</option>
+      <option value="wearsDesc">よく着る順</option>
+      <option value="stale">しばらく着ていない順</option>
+      <option value="cpw">着用単価が高い順</option>
+      <option value="name">名前順</option>
+    </select>
+  </div>
+
+  <main class="shelves" id="grid"></main>
+</div>
+
+<dialog id="dlg">
+  <form id="form" method="dialog">
+    <div class="dlg-h"><h2 id="dlgTitle">服を登録</h2><button class="btn small" type="button" id="closeBtn">閉じる</button></div>
+    <div class="dlg-b">
+      <div class="field full">
+        <span>写真</span>
+        <div class="photo-row">
+          <div class="photo-prev" id="photoPrev">写真なし</div>
+          <input type="file" id="f_photo" accept="image/*">
+          <button class="btn small" type="button" id="photoClear">写真を外す</button>
+        </div>
+      </div>
+      <label class="field full"><span>名前 *</span><input id="f_name" required maxlength="60" placeholder="例：白のオックスフォードシャツ"></label>
+      <label class="field"><span>カテゴリ</span><select id="f_cat"></select></label>
+      <label class="field"><span>状態</span><select id="f_status"></select></label>
+      <label class="field"><span>色</span>
+        <div style="display:flex;gap:6px"><input type="color" id="f_hex" value="#2b4c7e" style="width:48px;padding:2px"><input id="f_color" placeholder="例：ネイビー" maxlength="20"></div>
+      </label>
+      <label class="field"><span>ブランド</span><input id="f_brand" maxlength="40"></label>
+      <label class="field"><span>サイズ</span><input id="f_size" maxlength="20" placeholder="例：M / 26.5cm"></label>
+      <label class="field"><span>素材</span><input id="f_material" maxlength="40" placeholder="例：綿100%"></label>
+      <label class="field"><span>購入日</span><input type="date" id="f_bought"></label>
+      <label class="field"><span>価格（円）</span><input type="number" id="f_price" min="0" step="1" inputmode="numeric"></label>
+      <div class="field full"><span>シーズン</span>
+        <div class="seasons" id="f_seasons">
+          <label><input type="checkbox" value="春">春</label><label><input type="checkbox" value="夏">夏</label>
+          <label><input type="checkbox" value="秋">秋</label><label><input type="checkbox" value="冬">冬</label>
+        </div>
+      </div>
+      <label class="field full"><span>商品ページのURL</span>
+        <span class="url-row"><input id="f_url" type="url" placeholder="https://www.uniqlo.com/jp/ja/products/..."><a id="f_urlOpen" target="_blank" rel="noopener" hidden>開く</a></span>
+      </label>
+      <label class="field"><span>商品番号</span><input id="f_code" maxlength="40"></label>
+      <label class="field full"><span>お手入れ・メモ</span><textarea id="f_memo" maxlength="500" placeholder="例：手洗い可、陰干し"></textarea></label>
+      <div class="field full" id="logField" hidden><span>着用記録</span><div class="log" id="logList"></div></div>
+    </div>
+    <div class="dlg-f">
+      <div id="delArea"><button class="btn danger" type="button" id="delBtn" hidden>削除</button></div>
+      <div class="r"><button class="btn" type="button" id="cancelBtn">キャンセル</button><button class="btn primary" type="submit" id="saveBtn">保存</button></div>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="imp">
+  <div class="imp-wrap">
+    <div class="dlg-h"><h2>スクショから登録</h2><button class="btn small" type="button" id="impClose">閉じる</button></div>
+    <div class="dlg-b one">
+      <p class="hint">ユニクロ・GU・ZOZOTOWNなどの<b>商品ページ</b>や<b>購入履歴</b>の画面をスクリーンショットして選んでください。名前・色・サイズ・価格などをClaudeが読み取り、商品写真を切り抜きます。読み取り結果は登録前に確認・修正できます。</p>
+      <label class="field"><span id="impLabel">スクリーンショット</span><input type="file" id="impFiles" accept="image/*" multiple></label>
+      <label class="field"><span>商品ページのURL（任意・1着のときにそのまま保存）</span><input id="impUrl" type="url" placeholder="https://www.uniqlo.com/jp/ja/products/..."></label>
+      <div class="imp-thumbs" id="impThumbs"></div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <button class="btn primary" id="impRun" type="button" disabled>読み取る</button>
+        <button class="btn" id="impStop" type="button" hidden>中止</button>
+        <span id="impState" class="status" aria-live="polite"></span>
+      </div>
+      <div id="impResults" class="imp-results"></div>
+    </div>
+    <div class="dlg-f"><div class="r"><button class="btn primary" id="impSave" type="button" hidden>選んだ服を登録</button></div></div>
+  </div>
+</dialog>
+
+<dialog id="bk">
+  <div class="imp-wrap">
+    <div class="dlg-h"><h2>バックアップ</h2><button class="btn small" type="button" id="bkClose">閉じる</button></div>
+    <div class="dlg-b one">
+      <p class="hint">服の記録はこのiPhoneの中にだけ保存されています。機種変更やSafariのデータ削除に備えて、ときどき書き出して「ファイル」アプリやiCloud Driveに保存してください。</p>
+      <button class="btn primary" id="bkExport" type="button">ファイルに書き出す</button>
+      <label class="field"><span>バックアップから読み込む</span><input type="file" id="bkFile" accept="application/json,.json"></label>
+      <span id="bkState" class="status" aria-live="polite"></span>
+    </div>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(() => {
+  const CATSETS = {
+    men: ["アウター","シャツ・ポロシャツ","フリース・スウェット・Tシャツ","セーター・カーディガン","パンツ","インナー・下着","ルームウェア","グッズ"],
+    women: ["アウター","シャツ・ポロシャツ","フリース・スウェット・Tシャツ","セーター・カーディガン","パンツ","スカート・ワンピース","インナー・下着","ルームウェア","グッズ"],
+  };
+  const COLOR_OF = { "アウター": "#7a5c3e", "シャツ・ポロシャツ": "#2b4c7e", "フリース・スウェット・Tシャツ": "#5b8bd0", "セーター・カーディガン": "#8a6fb0",
+    "パンツ": "#3f7d64", "スカート・ワンピース": "#b0638a", "インナー・下着": "#9aa3ad", "ルームウェア": "#c08a2d", "グッズ": "#5f6b78" };
+  const colorOf = (c) => COLOR_OF[c] || "#888";
+  let mode = "men";
+  let CATS = CATSETS.men;
+  // 以前のカテゴリ名を新しい分類に読み替える
+  function normCat(it) {
+    const c = it.cat;
+    if (CATSETS.women.includes(c)) return c;
+    const n = it.name || "";
+    if (c === "トップス") return /ニット|セーター|カーディガン/.test(n) ? "セーター・カーディガン" : /シャツ|ポロ/.test(n) && !/Tシャツ|スウェット/.test(n) ? "シャツ・ポロシャツ" : "フリース・スウェット・Tシャツ";
+    if (c === "ボトムス") return /スカート/.test(n) ? "スカート・ワンピース" : "パンツ";
+    if (c === "ワンピース") return "スカート・ワンピース";
+    if (["シューズ","バッグ","小物"].includes(c)) return "グッズ";
+    return c || "グッズ";
+  }
+  function setMode(m, persist) {
+    if (!CATSETS[m]) return;
+    mode = m; CATS = CATSETS[m];
+    document.querySelectorAll("#modeSeg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mode === m)));
+    if (persist && store?.saveMode) store.saveMode(m).catch(() => {});
+    try { localStorage.setItem("closet-mode", m); } catch {}
+    render();
+  }
+  const STATUSES = ["着用中","クリーニング中","保管中","手放す候補"];
+  const STALE_DAYS = 90;
+  const $ = (s) => document.querySelector(s);
+  const el = (tag, attrs = {}, ...kids) => { const n = document.createElement(tag); for (const [k,v] of Object.entries(attrs)) { if (k === "class") n.className = v; else if (k === "text") n.textContent = v; else if (k.startsWith("on")) n.addEventListener(k.slice(2), v); else n.setAttribute(k, v); } for (const c of kids) if (c != null) n.append(c); return n; };
+  const today = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,10); };
+  const daysSince = (iso) => iso ? Math.floor((Date.parse(today()) - Date.parse(iso)) / 86400000) : null;
+  const yen = (n) => "¥" + Math.round(n).toLocaleString("ja-JP");
+
+  let items = [];          // [{id, ...data}]
+  let store = null;        // {list, save(id,data), remove(id), kind}
+  let filter = { cat: "", q: "", season: "", status: "", sort: "new" };
+  let editing = null;      // id or null
+  let photoData = null;    // data URL for current form
+  let demoLoaded = false;
+  let sampleFn = null, imgLimits = null;
+
+  // ---------- storage ----------
+  function idbStore() {
+    return new Promise((resolve) => {
+      let req;
+      try { req = indexedDB.open("closet", 1); } catch { resolve(localStore()); return; }
+      req.onupgradeneeded = () => req.result.createObjectStore("items");
+      req.onerror = () => resolve(localStore());
+      req.onsuccess = () => {
+        const db = req.result;
+        const os = (m) => db.transaction("items", m).objectStore("items");
+        const wait = (r) => new Promise((res, rej) => { r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+        const mem = {};
+        const emit = () => { items = Object.entries(mem).map(([id, d]) => { const it = { id, ...d }; it.cat = normCat(it); return it; }); render(); };
+        resolve({
+          kind: "idb",
+          async start() {
+            const st = os("readonly");
+            const [keys, vals] = await Promise.all([wait(st.getAllKeys()), wait(st.getAll())]);
+            keys.forEach((k, i) => mem[k] = vals[i]);
+            emit();
+          },
+          async save(id, data) { await wait(os("readwrite").put(data, id)); mem[id] = data; emit(); },
+          async remove(id) { await wait(os("readwrite").delete(id)); delete mem[id]; emit(); },
+        });
+      };
+    });
+  }
+  function localStore() {
+    const KEY = "closet-items-v1";
+    let mem = {};
+    try { mem = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch {}
+    const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(mem)); } catch {} };
+    const emit = () => { items = Object.entries(mem).map(([id, d]) => { const it = { id, ...d }; it.cat = normCat(it); return it; }); render(); };
+    return {
+      kind: "local",
+      start() { emit(); },
+      async save(id, data) { mem[id] = data; persist(); emit(); },
+      async remove(id) { delete mem[id]; persist(); emit(); },
+    };
+  }
+  async function cloudStore() {
+    if (!window.claude?.use) return null;
+    const [db, user] = await Promise.all([window.claude.use("db"), window.claude.use("user")]);
+    if (!db || !user) return null;
+    const uid = await user.id();
+    if (!uid) return null;
+    const col = db.collection("data/users/" + uid);
+    return {
+      kind: "cloud",
+      start() {
+        col.onSnapshot((snap) => {
+          const st = snap.docs.find((d) => d.id === SETTINGS_ID);
+          const m = st?.data()?.mode; if (m && m !== mode && CATSETS[m]) { mode = m; CATS = CATSETS[m]; document.querySelectorAll("#modeSeg button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mode === m))); }
+          items = snap.docs.filter((d) => d.id !== SETTINGS_ID).map((d) => { const it = { id: d.id, ...d.data() }; it.cat = normCat(it); return it; }); setStatus("自動保存されます（あなただけが見られます）"); render(); },
+          (e) => { setStatus("同期が止まりました。ページを再読み込みしてください。"); console.warn(e); });
+      },
+      save: (id, data) => col.doc(id).set(data),
+      saveMode: (m) => col.doc(SETTINGS_ID).set({ mode: m }),
+      remove: (id) => col.doc(id).delete(),
+    };
+  }
+  const SETTINGS_ID = "_settings";
+  const newId = () => "c" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+
+  function setStatus(t) { $("#status").textContent = t; }
+  let toastT;
+  function toast(t) { const n = $("#toast"); n.textContent = t; n.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => n.hidden = true, 2200); }
+
+  async function safeSave(id, data, msg) {
+    try { await store.save(id, data); if (msg) toast(msg); }
+    catch (e) { toast(e?.code === "quota_exceeded" ? "保存容量がいっぱいです。不要な服を削除してください。" : "保存できませんでした。もう一度お試しください。"); console.warn(e); }
+  }
+
+  // ---------- derived ----------
+  const wears = (it) => (it.wearLog || []).length;
+  const lastWorn = (it) => (it.wearLog || []).slice().sort().pop() || null;
+  const cpw = (it) => it.price ? it.price / Math.max(1, wears(it)) : 0;
+  const isStale = (it) => { if (it.status === "手放す候補") return false; const l = lastWorn(it); const ref = l || it.bought || it.created?.slice(0,10); const d = daysSince(ref); return d != null && d >= STALE_DAYS; };
+
+  function visible() {
+    const q = filter.q.trim().toLowerCase();
+    let list = items.filter((it) =>
+      (!filter.cat || it.cat === filter.cat) &&
+      (!filter.season || (it.seasons || []).includes(filter.season)) &&
+      (!filter.status || it.status === filter.status) &&
+      (!q || [it.name, it.brand, it.memo, it.color, it.material].some((s) => (s || "").toLowerCase().includes(q))));
+    const by = {
+      new: (a, b) => (b.created || "").localeCompare(a.created || ""),
+      wearsDesc: (a, b) => wears(b) - wears(a),
+      stale: (a, b) => (lastWorn(a) || "0000").localeCompare(lastWorn(b) || "0000"),
+      cpw: (a, b) => cpw(b) - cpw(a),
+      name: (a, b) => (a.name || "").localeCompare(b.name || "", "ja"),
+    }[filter.sort];
+    return list.sort(by);
+  }
+
+  // ---------- render ----------
+  function render() {
+    renderGrid();
+  }
+  function renderSummary() {
+    const s = $("#summary"); s.replaceChildren();
+    const total = items.length;
+    const totalPrice = items.reduce((a, it) => a + (Number(it.price) || 0), 0);
+    const totalWears = items.reduce((a, it) => a + wears(it), 0);
+    const stale = items.filter(isStale).length;
+    const month = today().slice(0, 7);
+    const monthWears = items.reduce((a, it) => a + (it.wearLog || []).filter((d) => d.startsWith(month)).length, 0);
+    const stat = (k, v, unit, extra) => el("div", { class: "stat" }, el("div", { class: "k", text: k }), el("div", { class: "v" }, v, unit ? el("span", { text: unit }) : null), extra);
+    const bar = el("div", { class: "bar", "aria-hidden": "true" });
+    CATS.forEach((c) => { const n = items.filter((it) => it.cat === c).length; if (n) bar.append(el("span", { style: `flex:${n};background:${colorOf(c)}`, title: `${c} ${n}` })); });
+    s.append(
+      stat("登録数", String(total), "着", total ? bar : null),
+      stat("今月の着用", String(monthWears), "回"),
+      stat("平均着用単価", totalWears && totalPrice ? yen(totalPrice / totalWears) : "—", ""),
+      stat(`${STALE_DAYS}日以上着ていない`, String(stale), "着"),
+      stat("合計金額", totalPrice ? yen(totalPrice) : "—", ""),
+    );
+  }
+  function renderGrid() {
+    const g = $("#grid"); g.replaceChildren();
+    if (!items.length) {
+      g.append(el("div", { class: "intro" },
+        el("p", { text: "まだ服が登録されていません。各部位の「＋ 追加」から登録すると、部位ごとの着数と、服ごとの購入額・着用回数がここに並びます。" }),
+        el("button", { class: "btn small", type: "button", onclick: loadSamples, text: "サンプルで試す（8着）" })));
+    }
+    const list = visible();
+    const filtered = !!(filter.q.trim() || filter.season || filter.status);
+    CATS.forEach((cat, ci) => {
+      const all = items.filter((it) => it.cat === cat);
+      const shown = list.filter((it) => it.cat === cat);
+      if (filtered && !shown.length) return;
+      const spent = all.reduce((a, it) => a + (Number(it.price) || 0), 0);
+      const worn = all.reduce((a, it) => a + wears(it), 0);
+      const head = el("div", { class: "shelf-h" },
+        el("span", { class: "dot", style: `background:${colorOf(cat)}`, "aria-hidden": "true" }),
+        el("h2", { text: cat }),
+        el("span", { class: "count" }, el("b", { text: String(all.length) }), "着", filtered ? el("span", { class: "sub", text: `（表示 ${shown.length}）` }) : null),
+        el("span", { class: "sum", text: all.length ? [spent ? `購入額 ${yen(spent)}` : "", `着用 ${worn}回`].filter(Boolean).join(" ・ ") : "" }),
+        el("button", { class: "btn small add", type: "button", "aria-label": `${cat}を追加`, onclick: () => openForm(null, cat), text: "＋ 追加" }));
+      const row = el("div", { class: "shelf-row" });
+      if (shown.length) shown.forEach((it) => row.append(card(it)));
+      else row.append(el("p", { class: "shelf-empty", text: `${cat}はまだ登録されていません。` }));
+      g.append(el("section", { class: "shelf", "aria-label": cat }, head, row));
+    });
+    const other = list.filter((it) => !CATS.includes(it.cat));
+    if (other.length) { const row = el("div", { class: "shelf-row" }, ...other.map(card)); g.append(el("section", { class: "shelf" }, el("div", { class: "shelf-h" }, el("h2", { text: mode === "men" ? "MENの分類にない服" : "その他" }), el("span", { class: "count" }, el("b", { text: String(other.length) }), "着")), row)); }
+    if (filtered && !list.length) g.append(el("div", { class: "empty" }, el("p", { text: "条件に合う服がありません。検索や絞り込みを変えてみてください。" })));
+  }
+  function card(it) {
+    const ph = el("button", { class: "ph", type: "button", "aria-label": `${it.name}を編集`, onclick: () => openForm(it.id) });
+    if (it.photo) ph.append(el("img", { src: it.photo, alt: "" }));
+    else ph.append(el("span", { class: "sw", style: `background:${it.hex || "#888"}` }));
+    const l = lastWorn(it); const ds = daysSince(l);
+    const pills = el("div", { class: "pills" });
+    (it.seasons || []).forEach((s) => pills.append(el("span", { class: "pill", text: s })));
+    if (it.status && it.status !== "着用中") pills.append(el("span", { class: "pill warn", text: it.status }));
+    if (isStale(it)) pills.append(el("span", { class: "pill warn", text: "最近着ていない" }));
+    const wornToday = (it.wearLog || []).includes(today());
+    const meta = [it.brand, it.size, it.color].filter(Boolean).join(" ・ ");
+    const n = wears(it);
+    const kv = (k, v, strong) => el("div", { class: "kv" + (strong ? " strong" : "") }, el("dt", { text: k }), el("dd", { text: v }));
+    return el("article", { class: "tag" },
+      el("span", { class: "hole", "aria-hidden": "true" }),
+      it.sample ? el("span", { class: "example", text: "サンプル" }) : null,
+      ph,
+      el("div", { class: "body" },
+        el("div", { class: "name", text: it.name }),
+        meta ? el("div", { class: "meta", text: meta }) : null,
+        pills.childElementCount ? pills : null,
+        el("dl", { class: "money" },
+          kv("購入額", it.price ? yen(it.price) : "—"),
+          kv("着用", `${n}回`, true),
+          kv("1回あたり", it.price ? (n ? yen(it.price / n) : "未着用") : "—"),
+          kv("最終着用", l ? (ds === 0 ? "今日" : `${ds}日前`) : "—")),
+        wornToday
+          ? el("button", { class: "btn small wear", type: "button", onclick: () => toggleWear(it, false), text: "今日 ✓（取り消す）" })
+          : el("button", { class: "btn small primary wear", type: "button", onclick: () => toggleWear(it, true), text: "今日着た" })));
+  }
+
+  async function toggleWear(it, on) {
+    const { id, ...data } = it;
+    const log = new Set(data.wearLog || []);
+    on ? log.add(today()) : log.delete(today());
+    await safeSave(id, { ...data, wearLog: [...log].sort(), updated: new Date().toISOString() }, on ? `「${it.name}」の着用を記録しました` : "記録を取り消しました");
+  }
+
+  // ---------- form ----------
+  const dlg = $("#dlg");
+  STATUSES.forEach((s) => { $("#f_status").append(el("option", { text: s, value: s })); $("#statusF").append(el("option", { text: s, value: s })); });
+
+  function setPhoto(src) {
+    photoData = src; const p = $("#photoPrev"); p.replaceChildren();
+    if (src) p.append(el("img", { src, alt: "写真のプレビュー" })); else p.textContent = "写真なし";
+  }
+  function openForm(id, presetCat) {
+    editing = id; const it = items.find((x) => x.id === id) || (presetCat ? { cat: presetCat } : {});
+    $("#dlgTitle").textContent = id ? "服を編集" : "服を登録";
+    $("#f_name").value = it.name || ""; $("#f_cat").replaceChildren(...[...CATS, ...(it.cat && !CATS.includes(it.cat) ? [it.cat] : [])].map((c) => el("option", { text: c, value: c }))); $("#f_cat").value = it.cat || CATS[0]; $("#f_status").value = it.status || STATUSES[0];
+    $("#f_hex").value = it.hex || "#2b4c7e"; $("#f_color").value = it.color || ""; $("#f_brand").value = it.brand || "";
+    $("#f_size").value = it.size || ""; $("#f_material").value = it.material || ""; $("#f_bought").value = it.bought || "";
+    $("#f_price").value = it.price ?? ""; $("#f_memo").value = it.memo || ""; $("#f_photo").value = "";
+    $("#f_url").value = it.productUrl || ""; $("#f_code").value = it.productCode || ""; syncUrl();
+    document.querySelectorAll("#f_seasons input").forEach((c) => c.checked = (it.seasons || []).includes(c.value));
+    setPhoto(it.photo || null);
+    const log = (it.wearLog || []).slice().sort().reverse();
+    $("#logField").hidden = !id; $("#logList").replaceChildren(...(log.length ? log.slice(0, 30).map((d) => el("span", { text: d })) : [el("span", { text: "まだ記録はありません" })]));
+    resetDel(); $("#delBtn").hidden = !id;
+    dlg.showModal(); if (!id) $("#f_name").focus();
+  }
+  function safeUrl(v) { v = (v || "").trim(); return /^https?:\/\/\S+$/i.test(v) ? v : ""; }
+  function syncUrl() { const u = safeUrl($("#f_url").value); const a = $("#f_urlOpen"); a.hidden = !u; if (u) a.href = u; }
+  $("#f_url").addEventListener("input", syncUrl);
+  function resetDel() { const a = $("#delArea"); a.replaceChildren($("#delBtn") || el("button")); }
+  $("#closeBtn").onclick = $("#cancelBtn").onclick = () => dlg.close();
+  $("#addBtn").onclick = () => openForm(null);
+  $("#photoClear").onclick = () => { setPhoto(null); $("#f_photo").value = ""; };
+  $("#f_photo").addEventListener("change", (e) => {
+    const f = e.target.files?.[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = () => { const img = new Image(); img.onload = () => {
+      const max = 520, s = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas"); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); setPhoto(c.toDataURL("image/jpeg", 0.72)); };
+      img.onerror = () => toast("この画像は読み込めませんでした。JPEGかPNGを選んでください。"); img.src = r.result; };
+    r.readAsDataURL(f);
+  });
+  $("#delBtn").addEventListener("click", () => {
+    const it = items.find((x) => x.id === editing); if (!it) return;
+    const a = $("#delArea"); const keep = $("#delBtn");
+    a.replaceChildren(el("div", { class: "confirm" }, el("span", { text: "本当に削除しますか？" }),
+      el("button", { class: "btn small danger", type: "button", onclick: async () => { try { await store.remove(it.id); toast(`「${it.name}」を削除しました`); dlg.close(); } catch { toast("削除できませんでした"); } }, text: "削除する" }),
+      el("button", { class: "btn small", type: "button", onclick: () => a.replaceChildren(keep), text: "やめる" })));
+  });
+  $("#form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const name = $("#f_name").value.trim(); if (!name) { $("#f_name").focus(); return; }
+    const prev = items.find((x) => x.id === editing) || {};
+    const { id: _omit, ...prevData } = prev;
+    const price = $("#f_price").value === "" ? null : Math.max(0, Number($("#f_price").value));
+    const data = { ...prevData, name, cat: $("#f_cat").value, status: $("#f_status").value, hex: $("#f_hex").value, color: $("#f_color").value.trim(),
+      brand: $("#f_brand").value.trim(), size: $("#f_size").value.trim(), material: $("#f_material").value.trim(), bought: $("#f_bought").value || null,
+      price, memo: $("#f_memo").value.trim(), seasons: [...document.querySelectorAll("#f_seasons input:checked")].map((c) => c.value),
+      productUrl: safeUrl($("#f_url").value), productCode: $("#f_code").value.trim(),
+      photo: photoData || null, wearLog: prevData.wearLog || [], created: prevData.created || new Date().toISOString(), updated: new Date().toISOString() };
+    delete data.sample;
+    const id = editing || newId();
+    $("#saveBtn").disabled = true;
+    await safeSave(id, data, editing ? "保存しました" : `「${name}」を登録しました`);
+    $("#saveBtn").disabled = false; dlg.close();
+  });
+
+  // ---------- filters ----------
+  $("#q").addEventListener("input", (e) => { filter.q = e.target.value; renderGrid(); });
+  $("#season").addEventListener("change", (e) => { filter.season = e.target.value; renderGrid(); });
+  $("#statusF").addEventListener("change", (e) => { filter.status = e.target.value; renderGrid(); });
+  $("#sort").addEventListener("change", (e) => { filter.sort = e.target.value; renderGrid(); });
+
+  // ---------- samples ----------
+  function ago(n) { const d = new Date(); d.setDate(d.getDate() - n); return new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,10); }
+  async function loadSamples() {
+    if (demoLoaded) return; demoLoaded = true;
+    const S = [
+      ["白オックスフォードシャツ","シャツ・ポロシャツ","#f4f4f0","ホワイト","M",["春","秋"],5990,[2,9,16,23,30,41]],
+      ["グレーのクルーネックニット","セーター・カーディガン","#8d939b","グレー","M",["秋","冬"],8900,[4,11,60]],
+      ["インディゴのデニム","パンツ","#2b4c7e","インディゴ","W30",["春","秋","冬"],12000,[1,3,8,12,20,27,33]],
+      ["ベージュのチノパン","パンツ","#c9b48a","ベージュ","M",["春","夏"],6900,[130]],
+      ["ネイビーのステンカラーコート","アウター","#23314a","ネイビー","M",["冬"],32000,[200]],
+      ["スウェットパーカ","フリース・スウェット・Tシャツ","#9aa3ad","グレー","L",["秋","冬"],3990,[100,110]],
+      ["エアリズムコットンTシャツ","フリース・スウェット・Tシャツ","#ececec","ホワイト","M",["春","夏","秋"],1500,[0,2,5,7,10,14,19,24]],
+      ["キャンバストート","グッズ","#3f5f4c","オリーブ","",["春","夏","秋","冬"],3500,[5,13]],
+    ];
+    const now = Date.now();
+    for (let i = 0; i < S.length; i++) {
+      const [name, cat, hex, color, size, seasons, price, wornAgo] = S[i];
+      await safeSave("sample" + i, { name, cat, hex, color, size, seasons, price, brand: "", material: "", memo: "", status: i === 5 ? "保管中" : "着用中",
+        bought: ago(220 + i * 10), wearLog: wornAgo.map(ago).sort(), photo: null, sample: true,
+        created: new Date(now - i * 1000).toISOString(), updated: new Date(now).toISOString() });
+    }
+    toast("サンプルを追加しました。不要になったら各カードから削除できます。");
+  }
+
+  // ---------- import from screenshots ----------
+  const imp = $("#imp");
+  let impFiles = [], impFound = [], impAbort = null;
+  function openImport() {
+    impFiles = []; impFound = [];
+    $("#impFiles").value = ""; $("#impUrl").value = ""; $("#impThumbs").replaceChildren(); $("#impResults").replaceChildren();
+    $("#impState").textContent = ""; $("#impRun").disabled = true; $("#impSave").hidden = true; $("#impStop").hidden = true;
+    $("#impLabel").textContent = `スクリーンショット（最大${imgLimits?.maxCount || 1}枚）`;
+    imp.showModal();
+  }
+  $("#importBtn").onclick = openImport;
+  $("#impClose").onclick = () => { impAbort?.abort(); imp.close(); };
+  $("#impStop").onclick = () => impAbort?.abort();
+  $("#impFiles").addEventListener("change", (e) => {
+    const max = imgLimits?.maxCount || 1;
+    const all = [...(e.target.files || [])];
+    impFiles = all.filter((f) => !imgLimits?.mediaTypes || imgLimits.mediaTypes.includes(f.type)).slice(0, max);
+    $("#impThumbs").replaceChildren(...impFiles.map((f) => el("img", { src: URL.createObjectURL(f), alt: "選んだスクリーンショット" })));
+    $("#impRun").disabled = !impFiles.length;
+    if (all.length > impFiles.length) $("#impState").textContent = `読み取れるのは${max}枚までです（JPEG・PNG・WebP）。`; else $("#impState").textContent = "";
+  });
+
+  function loadImg(file) {
+    return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = URL.createObjectURL(file); });
+  }
+  function cropTo(img, box) {
+    let sx = 0, sy = 0, sw = img.naturalWidth, sh = img.naturalHeight;
+    if (box) {
+      const c = (v) => Math.min(1, Math.max(0, Number(v) || 0));
+      const x = c(box.x), y = c(box.y), w = c(box.w), h = c(box.h);
+      if (w > 0.03 && h > 0.03) { sx = x * img.naturalWidth; sy = y * img.naturalHeight; sw = Math.min(w * img.naturalWidth, img.naturalWidth - sx); sh = Math.min(h * img.naturalHeight, img.naturalHeight - sy); }
+    }
+    const s = Math.min(1, 520 / Math.max(sw, sh));
+    const cv = document.createElement("canvas"); cv.width = Math.max(1, Math.round(sw * s)); cv.height = Math.max(1, Math.round(sh * s));
+    cv.getContext("2d").drawImage(img, sx, sy, sw, sh, 0, 0, cv.width, cv.height);
+    return cv.toDataURL("image/jpeg", 0.72);
+  }
+
+  $("#impRun").addEventListener("click", async () => {
+    if (!sampleFn || !impFiles.length) return;
+    const url = safeUrl($("#impUrl").value);
+    const prompt = `これは日本の衣料品ブランド（ユニクロ、GU、ZOZOTOWNなど）の公式サイトまたはアプリのスクリーンショット${impFiles.length}枚です（0から順に番号）。商品ページなら主役の商品1点（選択中の色・サイズ）、購入履歴なら購入した衣類・靴・バッグ・小物をすべて抜き出してください。
+${url ? "参考URL: " + url + "\n" : ""}画面に書かれていない項目は推測せず空文字かnullにしてください（hexとseasonsだけは見た目と商品の種類から推定してよい）。
+次の形のJSONだけを返してください：
+{"items":[{"image":スクショ番号,"name":"商品名","brand":"ブランド名","cat":"${CATS.join("|")}のどれか","color":"色名","hex":"#rrggbb","size":"サイズ","material":"素材","price":税込価格の数値またはnull,"seasons":["春","夏","秋","冬"]の部分集合,"productCode":"商品番号","bought":"購入日YYYY-MM-DDまたはnull","box":{"x":0〜1,"y":0〜1,"w":0〜1,"h":0〜1}}]}
+boxはその商品の写真部分の位置を、スクショ全体の幅・高さに対する割合で示します（左上が0,0）。写真が無ければnull。衣類が見つからなければ {"items":[]}。catは${mode === "men" ? "MEN" : "WOMEN"}向けの分類です。靴・バッグ・帽子・靴下などはグッズにしてください。`;
+    impAbort = new AbortController();
+    $("#impRun").disabled = true; $("#impStop").hidden = false; $("#impSave").hidden = true; $("#impResults").replaceChildren();
+    $("#impState").textContent = "読み取り中…（30秒〜1分ほどかかります）";
+    try {
+      const out = await sampleFn.json(prompt, { images: impFiles, signal: impAbort.signal });
+      const list = Array.isArray(out?.items) ? out.items : [];
+      const imgs = await Promise.all(impFiles.map((f) => loadImg(f).catch(() => null)));
+      impFound = list.slice(0, 30).map((r) => {
+        const img = imgs[Math.max(0, Math.min(imgs.length - 1, Number(r.image) || 0))];
+        return { r, crop: img ? cropTo(img, r.box) : null, whole: img ? cropTo(img, null) : null };
+      });
+      renderImport(url);
+      $("#impState").textContent = impFound.length ? `${impFound.length}着見つかりました。内容を確認して登録してください。` : "服が見つかりませんでした。商品名や写真が写った画面で試してください。";
+    } catch (e) {
+      const m = { not_granted: "Claudeの利用が許可されなかったため読み取れません。", aborted: "中止しました。", rate_limited: "混み合っています。少し待ってからもう一度お試しください。" };
+      $("#impState").textContent = m[e?.code] || (e?.name === "AbortError" ? m.aborted : "読み取れませんでした。別のスクリーンショットでお試しください。");
+      console.warn(e);
+    } finally {
+      $("#impRun").disabled = !impFiles.length; $("#impStop").hidden = true; impAbort = null;
+    }
+  });
+
+  function renderImport(url) {
+    const box = $("#impResults"); box.replaceChildren();
+    impFound.forEach((f, i) => {
+      const r = f.r; f.on = true; f.photoMode = f.crop ? "crop" : "none";
+      f.name = String(r.name || "").slice(0, 60); f.cat = CATS.includes(r.cat) ? r.cat : CATS[0];
+      const th = el("img", { class: "th", alt: "", src: f.crop || "" });
+      const nm = el("input", { id: "impName" + i, value: f.name, "aria-label": "名前", oninput: (e) => f.name = e.target.value });
+      const cat = el("select", { id: "impCat" + i, "aria-label": "カテゴリ", onchange: (e) => f.cat = e.target.value }, ...CATS.map((c) => el("option", { value: c, text: c })));
+      cat.value = f.cat;
+      const ph = el("select", { id: "impPh" + i, "aria-label": "写真", onchange: (e) => { f.photoMode = e.target.value; th.src = e.target.value === "crop" ? f.crop : e.target.value === "whole" ? f.whole : ""; } },
+        el("option", { value: "crop", text: "写真：切り抜き" }), el("option", { value: "whole", text: "写真：スクショ全体" }), el("option", { value: "none", text: "写真なし" }));
+      ph.value = f.photoMode;
+      const meta = [r.brand, r.color, r.size, r.material, r.price ? yen(Number(r.price)) : "", r.productCode ? "No." + r.productCode : "", r.bought ? r.bought + " 購入" : ""].filter(Boolean).join(" ・ ");
+      box.append(el("div", { class: "imp-row" },
+        el("input", { type: "checkbox", id: "impOn" + i, checked: "", "aria-label": "登録する", onchange: (e) => f.on = e.target.checked }),
+        th,
+        el("div", { class: "info" }, nm, cat, ph, meta ? el("div", { class: "meta", text: meta }) : null)));
+    });
+    $("#impSave").hidden = !impFound.length;
+    $("#impSave").onclick = async () => {
+      const pick = impFound.filter((f) => f.on && f.name.trim());
+      if (!pick.length) { $("#impState").textContent = "登録する服を1つ以上選んでください。"; return; }
+      $("#impSave").disabled = true;
+      const now = Date.now();
+      for (let i = 0; i < pick.length; i++) {
+        const { r } = pick[i];
+        const seasons = Array.isArray(r.seasons) ? r.seasons.filter((s) => ["春","夏","秋","冬"].includes(s)) : [];
+        const price = Number(r.price) > 0 ? Math.round(Number(r.price)) : null;
+        const bought = /^\d{4}-\d{2}-\d{2}$/.test(r.bought || "") ? r.bought : null;
+        await safeSave(newId(), {
+          name: pick[i].name.trim(), cat: pick[i].cat, status: STATUSES[0],
+          hex: /^#[0-9a-f]{6}$/i.test(r.hex || "") ? r.hex : "#888888", color: String(r.color || "").slice(0, 20),
+          brand: String(r.brand || "").slice(0, 40), size: String(r.size || "").slice(0, 20), material: String(r.material || "").slice(0, 40),
+          bought, price, seasons, memo: "", productCode: String(r.productCode || "").slice(0, 40),
+          productUrl: pick.length === 1 ? url : "",
+          photo: pick[i].photoMode === "crop" ? pick[i].crop : pick[i].photoMode === "whole" ? pick[i].whole : null,
+          wearLog: [], created: new Date(now - i).toISOString(), updated: new Date(now).toISOString() });
+      }
+      $("#impSave").disabled = false;
+      toast(`${pick.length}着を登録しました`); imp.close();
+    };
+  }
+
+  // ---------- boot ----------
+  try { const m = localStorage.getItem("closet-mode"); if (CATSETS[m]) { mode = m; CATS = CATSETS[m]; document.querySelectorAll("#modeSeg button").forEach((x) => x.setAttribute("aria-pressed", String(x.dataset.mode === m))); } } catch {}
+  document.querySelectorAll("#modeSeg button").forEach((x) => x.addEventListener("click", () => setMode(x.dataset.mode, true)));
+  render();
+  if (window.claude?.use) window.claude.use("sample").then(async (s) => {
+    if (!s) return;
+    const lim = await s.limits().catch(() => null);
+    if (!lim?.images) return;
+    sampleFn = s; imgLimits = lim.images;
+    $("#importBtn").hidden = false; $("#impFiles").accept = lim.images.mediaTypes.join(",");
+    render();
+  }).catch(() => {});
+  idbStore().then((s) => { store = s; setStatus("この端末に保存"); return store.start(); })
+    .catch(() => { store = localStore(); setStatus("この端末に保存"); store.start(); });
+  try { navigator.storage?.persist?.(); } catch {}
+  if ("serviceWorker" in navigator) window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+
+  // ---------- backup ----------
+  const bk = $("#bk");
+  $("#bkBtn").onclick = () => { $("#bkState").textContent = `登録数 ${items.length}着`; $("#bkFile").value = ""; bk.showModal(); };
+  $("#bkClose").onclick = () => bk.close();
+  $("#bkExport").onclick = async () => {
+    const data = { app: "closet", version: 1, exported: new Date().toISOString(), mode, items: items.map(({ id, ...d }) => ({ id, ...d })) };
+    const name = `closet-backup-${today()}.json`;
+    const file = new File([JSON.stringify(data)], name, { type: "application/json" });
+    try {
+      if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file], title: name }); $("#bkState").textContent = "書き出しました。「ファイル」アプリなどに保存してください。"; return; }
+    } catch (e) { if (e?.name === "AbortError") return; }
+    const a = document.createElement("a"); a.href = URL.createObjectURL(file); a.download = name; document.body.append(a); a.click(); a.remove();
+    $("#bkState").textContent = "書き出しました。";
+  };
+  $("#bkFile").addEventListener("change", async (e) => {
+    const f = e.target.files?.[0]; if (!f) return;
+    try {
+      const data = JSON.parse(await f.text());
+      if (data?.app !== "closet" || !Array.isArray(data.items)) throw new Error("format");
+      let n = 0;
+      for (const { id, ...d } of data.items) { if (!id || !d.name) continue; await store.save(String(id), d); n++; }
+      if (data.mode && CATSETS[data.mode]) setMode(data.mode, true);
+      $("#bkState").textContent = `${n}着を読み込みました（同じ服は上書き、それ以外は追加）。`;
+    } catch { $("#bkState").textContent = "読み込めませんでした。このアプリで書き出したバックアップファイルを選んでください。"; }
+  });
+})();
+</script>
+
+</body>
+</html>
