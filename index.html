@@ -472,8 +472,7 @@ dialog form { display: flex; flex-direction: column; max-height: calc(100dvh - 2
     const g = $("#grid"); g.replaceChildren();
     if (!items.length) {
       g.append(el("div", { class: "intro" },
-        el("p", { text: "まだ服が登録されていません。各部位の「＋ 追加」から登録すると、部位ごとの着数と、服ごとの購入額・着用回数がここに並びます。" }),
-        el("button", { class: "btn small", type: "button", onclick: loadSamples, text: "サンプルで試す（8着）" })));
+        el("p", { text: "まだ服が登録されていません。各部位の「＋ 追加」から登録すると、部位ごとの着数と、服ごとの購入額・着用回数がここに並びます。" })));
     }
     const list = visible();
     const filtered = !!(filter.q.trim() || filter.season || filter.status);
